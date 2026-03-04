@@ -1,0 +1,222 @@
+{
+  "_meta": {
+    "project": "MAPLAB Kitchen — Master Data Layer",
+    "version": "1.0.0",
+    "created": "2026-03-04",
+    "author": "MAPLAB x Claude",
+    "description": "ERP-ready schema draft. 六張表以 item_id / menu_id 為主鍵關聯。AI 不參與報價決策，僅提供資料結構。",
+    "github_path": "/schemas/maplab_master_data.schema.json"
+  },
+
+  "naming_convention": {
+    "item_id": {
+      "format": "{TYPE}-{SUBTYPE}-{SEQ3}",
+      "example": "DES-MAC-001",
+      "rules": [
+        "TYPE: 大寫 3 碼，見下方 type_prefix",
+        "SUBTYPE: 大寫 3 碼自訂縮寫，同類別內不重複",
+        "SEQ3: 3 位數流水號，從 001 開始"
+      ],
+      "type_prefix": {
+        "DES": "Dessert 甜點類（馬卡龍、蛋糕、糖霜餅乾）",
+        "SAV": "Savory 鹹食類（開胃小點、主食、熱盤）",
+        "DRK": "Drink 飲品類（含酒精 / 無酒精）",
+        "EQP": "Equipment 設備/道具類（桌椅、帳篷、餐具）",
+        "PKG": "Package 套餐包（多 item 組合）",
+        "SVC": "Service 服務類（佈置費、交通費、人力費）"
+      },
+      "examples": [
+        "DES-MAC-001 → 法式馬卡龍",
+        "DES-CAK-001 → 主題蛋糕",
+        "SAV-APZ-001 → 義式香腸開胃盤",
+        "SAV-MAN-001 → 主廚手作義大利麵",
+        "DRK-NCA-001 → 無酒精氣泡飲",
+        "DRK-WIN-001 → 白酒",
+        "EQP-TBL-001 → 6 尺長桌",
+        "PKG-WED-001 → 婚禮外燴基本套",
+        "SVC-DEC-001 → 場地佈置服務費"
+      ]
+    },
+    "menu_id": {
+      "format": "MENU-{TYPE}-{SEQ3}",
+      "example": "MENU-WED-001",
+      "type_prefix": {
+        "WED": "婚禮外燴菜單",
+        "BIR": "生日/週歲派對菜單",
+        "COR": "企業活動菜單",
+        "SEA": "季節限定菜單",
+        "CST": "客製化菜單"
+      }
+    },
+    "asset_id": {
+      "format": "{item_id}-{TYPE}-{SEQ2}",
+      "example": "DES-MAC-001-CVR-01",
+      "type": {
+        "CVR": "cover 主圖（每個 item 只有一張）",
+        "DTL": "detail 細節圖",
+        "SCN": "scene 情境圖（擺盤/現場）",
+        "PPT": "ppt 專用圖（白底/去背）"
+      }
+    }
+  },
+
+  "tables": {
+
+    "ITEM_MASTER": {
+      "description": "產品主檔。所有品項的基礎資料，是其他表的關聯核心。",
+      "primary_key": "item_id",
+      "columns": [
+        { "name": "item_id",        "type": "string",  "required": true,  "description": "唯一識別碼，命名規則見上方", "example": "DES-MAC-001" },
+        { "name": "item_name_zh",   "type": "string",  "required": true,  "description": "中文品項名稱",              "example": "法式玫瑰馬卡龍" },
+        { "name": "item_name_en",   "type": "string",  "required": false, "description": "英文名稱（報價單/PPT用）",  "example": "Rose Macaron" },
+        { "name": "category",       "type": "enum",    "required": true,  "description": "主類別前綴",                "enum": ["DES","SAV","DRK","EQP","PKG","SVC"], "example": "DES" },
+        { "name": "subcategory",    "type": "string",  "required": false, "description": "次分類，自由填寫",          "example": "法式甜點" },
+        { "name": "unit",           "type": "enum",    "required": true,  "description": "計價單位",                  "enum": ["個","份","盤","桌","式","人份","瓶","組"], "example": "個" },
+        { "name": "cost_per_unit",  "type": "number",  "required": false, "description": "每單位成本（業務填，不對外）", "example": 45 },
+        { "name": "min_qty",        "type": "integer", "required": false, "description": "最低訂購數量",              "example": 12 },
+        { "name": "lead_time_days", "type": "integer", "required": false, "description": "需提前幾天確認備料",        "example": 3 },
+        { "name": "is_active",      "type": "boolean", "required": true,  "description": "是否目前提供",              "example": true },
+        { "name": "allergens",      "type": "string",  "required": false, "description": "過敏原標示（逗號分隔）",    "example": "麩質,蛋,堅果" },
+        { "name": "notes",          "type": "string",  "required": false, "description": "內部備注",                  "example": "需冷藏保存" },
+        { "name": "created_at",     "type": "date",    "required": true,  "description": "建立日期",                  "example": "2026-03-04" },
+        { "name": "updated_at",     "type": "date",    "required": true,  "description": "最後更新日期",              "example": "2026-03-04" }
+      ]
+    },
+
+    "PRICE_MASTER": {
+      "description": "價格主檔。同一 item_id 可以有多筆，對應不同 price_type。業務決定報價，AI 不介入。",
+      "primary_key": "price_id",
+      "foreign_keys": ["item_id → ITEM_MASTER.item_id"],
+      "columns": [
+        { "name": "price_id",    "type": "string",  "required": true,  "description": "格式：{item_id}-{price_type}，如 DES-MAC-001-CAT", "example": "DES-MAC-001-CAT" },
+        { "name": "item_id",     "type": "string",  "required": true,  "description": "對應 ITEM_MASTER",    "example": "DES-MAC-001" },
+        { "name": "price_type",  "type": "enum",    "required": true,  "description": "見 price_type 枚舉說明", "enum": ["takeaway","catering","corporate","vip","seasonal"], "example": "catering" },
+        { "name": "unit_price",  "type": "number",  "required": true,  "description": "單價（TWD）",          "example": 65 },
+        { "name": "currency",    "type": "string",  "required": true,  "description": "幣別，預設 TWD",       "default": "TWD", "example": "TWD" },
+        { "name": "min_qty",     "type": "integer", "required": false, "description": "此價格適用的最低數量",  "example": 24 },
+        { "name": "valid_from",  "type": "date",    "required": false, "description": "價格生效日（空=長期）", "example": "2026-01-01" },
+        { "name": "valid_to",    "type": "date",    "required": false, "description": "價格到期日（空=長期）", "example": "2026-12-31" },
+        { "name": "is_active",   "type": "boolean", "required": true,  "description": "是否啟用",             "example": true },
+        { "name": "notes",       "type": "string",  "required": false, "description": "備注（如：節慶加成）", "example": "聖誕旺季加 20%" }
+      ],
+      "price_type_guide": {
+        "takeaway": "外帶/自取價。適用於客戶自取或小量零售，通常是基礎定價。",
+        "catering": "外燴現場服務價。包含人力、運送、現場佈局，是主要業務型態。",
+        "corporate": "企業客戶專案價。量大或長期合作時啟用，需業務評估後決定。",
+        "vip": "VIP/高端活動加值版。含更高規格擺盤、專屬廚師、高端食材，不公開報價。",
+        "seasonal": "季節限定特殊價。如聖誕、中秋等旺季特別方案，有時效性。"
+      }
+    },
+
+    "ASSET_MASTER": {
+      "description": "圖片資產索引。不儲存圖片本身，只儲存連結與使用規則。Google Drive 資料夾結構與此表同步。",
+      "primary_key": "asset_id",
+      "foreign_keys": ["item_id → ITEM_MASTER.item_id"],
+      "columns": [
+        { "name": "asset_id",          "type": "string",  "required": true,  "description": "命名規則：{item_id}-{type}-{seq}",  "example": "DES-MAC-001-CVR-01" },
+        { "name": "item_id",           "type": "string",  "required": true,  "description": "對應品項",                          "example": "DES-MAC-001" },
+        { "name": "asset_type",        "type": "enum",    "required": true,  "description": "圖片用途分類",                      "enum": ["cover","detail","scene","ppt","social"], "example": "cover" },
+        { "name": "priority",          "type": "integer", "required": true,  "description": "同類型排序，1 = 主圖優先顯示",      "example": 1 },
+        { "name": "file_name",         "type": "string",  "required": true,  "description": "檔案名稱含副檔名",                  "example": "DES-MAC-001-CVR-01.avif" },
+        { "name": "gdrive_url",        "type": "url",     "required": true,  "description": "Google Drive 直連或分享連結",       "example": "https://drive.google.com/file/d/xxx" },
+        { "name": "gdrive_folder_id",  "type": "string",  "required": false, "description": "所在 Drive 資料夾 ID，便於批次管理", "example": "1a2b3c4d..." },
+        { "name": "format",            "type": "enum",    "required": true,  "description": "檔案格式",                          "enum": ["jpg","png","webp","avif"], "example": "avif" },
+        { "name": "width_px",          "type": "integer", "required": false, "description": "寬度像素",                          "example": 1920 },
+        { "name": "height_px",         "type": "integer", "required": false, "description": "高度像素",                          "example": 1080 },
+        { "name": "usage",             "type": "enum",    "required": true,  "description": "主要使用場景",                      "enum": ["web","ppt","print","social","all"], "example": "web" },
+        { "name": "alt_text_zh",       "type": "string",  "required": false, "description": "SEO alt 文字（中文），格式：台南[活動]外燴-[描述] MAPLAB Kitchen", "example": "台南週歲派對外燴-法式馬卡龍甜點桌 MAPLAB Kitchen" },
+        { "name": "is_active",         "type": "boolean", "required": true,  "description": "是否啟用（舊圖停用不刪除）",        "example": true },
+        { "name": "notes",             "type": "string",  "required": false, "description": "備注",                              "example": "保時捷活動現場拍攝" }
+      ],
+      "gdrive_folder_structure": {
+        "root": "MAPLAB_ASSETS/",
+        "structure": [
+          "MAPLAB_ASSETS/{item_id}/cover/     → 主圖，每個 item 只放一張 priority=1",
+          "MAPLAB_ASSETS/{item_id}/detail/    → 細節圖，多張",
+          "MAPLAB_ASSETS/{item_id}/scene/     → 情境圖（活動現場、擺盤）",
+          "MAPLAB_ASSETS/{item_id}/ppt/       → PPT 專用（白底或去背版）",
+          "MAPLAB_ASSETS/_events/             → 無法對應單一 item 的活動整場照片"
+        ],
+        "naming_rule": "資料夾名稱 = item_id，不用中文，便於程式讀取"
+      },
+      "asset_type_guide": {
+        "cover":  "主圖。每個 item 只有一張，priority=1，用於報價單首圖、官網列表。",
+        "detail": "細節圖。特寫、口感、食材展示，priority 依品質排序。",
+        "scene":  "情境圖。活動現場擺盤、賓客互動、全景，傳達體驗感，SEO 文章首選。",
+        "ppt":    "PPT/提案用圖。白底或去背，統一尺寸 1920x1080，用於報價簡報。",
+        "social": "社群專用圖。已裁切為 1:1 或 4:5 比例，Instagram/FB 用。"
+      }
+    },
+
+    "CONTENT_MASTER": {
+      "description": "SEO 內容主檔。每筆對應一個網頁或一篇文章。可與 item_id 關聯（品項頁）或獨立存在（部落格文章）。",
+      "primary_key": "content_id",
+      "foreign_keys": ["item_id → ITEM_MASTER.item_id (nullable)"],
+      "columns": [
+        { "name": "content_id",          "type": "string",  "required": true,  "description": "格式：CONTENT-{SEQ3}",             "example": "CONTENT-001" },
+        { "name": "item_id",             "type": "string",  "required": false, "description": "若為品項頁則填，部落格文章可空白", "example": "DES-MAC-001" },
+        { "name": "page_type",           "type": "enum",    "required": true,  "description": "頁面類型",                         "enum": ["home","service","blog","faq","landing"], "example": "blog" },
+        { "name": "page_slug",           "type": "string",  "required": true,  "description": "WordPress URL slug",              "example": "tainan-birthday-catering-guide" },
+        { "name": "meta_title",          "type": "string",  "required": true,  "description": "60 字內，含主關鍵字",              "example": "台南週歲派對外燴完整指南 2026｜MAPLAB Kitchen" },
+        { "name": "meta_description",    "type": "string",  "required": true,  "description": "150 字內，含次關鍵字+CTA",        "example": "台南週歲外燴怎麼辦？MAPLAB Kitchen 提供菜單設計、甜點桌..." },
+        { "name": "h1",                  "type": "string",  "required": true,  "description": "頁面 H1 標題，與 meta_title 可略不同", "example": "台南週歲派對外燴：從菜單到佈置一次搞定" },
+        { "name": "focus_keyword",       "type": "string",  "required": true,  "description": "RankMath 主要關鍵字",              "example": "台南週歲派對外燴" },
+        { "name": "secondary_keywords",  "type": "string",  "required": false, "description": "次要關鍵字，逗號分隔",             "example": "台南抓週外燴,台南寶寶派對外燴,台南外燴推薦" },
+        { "name": "faq_json",            "type": "json",    "required": false, "description": "FAQ Schema 問答組，JSON 格式",     "example": "[{\"q\":\"台南週歲外燴最少幾人？\",\"a\":\"最低 15 人\"}]" },
+        { "name": "status",              "type": "enum",    "required": true,  "description": "內容狀態",                        "enum": ["draft","published","needs_update","archived"], "example": "published" },
+        { "name": "published_at",        "type": "date",    "required": false, "description": "發布日期",                         "example": "2026-03-15" },
+        { "name": "word_count",          "type": "integer", "required": false, "description": "字數（發布後填）",                 "example": 1450 },
+        { "name": "notes",               "type": "string",  "required": false, "description": "備注",                             "example": "季前 6 週發布" }
+      ]
+    },
+
+    "MENU_MASTER": {
+      "description": "菜單主檔。一個 menu 是多個 item 的組合包，用於報價與 PPT 提案。",
+      "primary_key": "menu_id",
+      "columns": [
+        { "name": "menu_id",          "type": "string",  "required": true,  "description": "格式：MENU-{TYPE}-{SEQ}",            "example": "MENU-WED-001" },
+        { "name": "menu_name_zh",     "type": "string",  "required": true,  "description": "菜單中文名稱",                       "example": "婚禮外燴精選套餐" },
+        { "name": "menu_type",        "type": "enum",    "required": true,  "description": "菜單類型",                           "enum": ["wedding","birthday","corporate","seasonal","custom"], "example": "wedding" },
+        { "name": "target_pax_min",   "type": "integer", "required": false, "description": "建議最少人數",                       "example": 30 },
+        { "name": "target_pax_max",   "type": "integer", "required": false, "description": "建議最多人數",                       "example": 120 },
+        { "name": "price_per_pax",    "type": "number",  "required": false, "description": "每人均價參考（業務決定，僅內部用）", "example": 850 },
+        { "name": "is_active",        "type": "boolean", "required": true,  "description": "是否目前推薦",                       "example": true },
+        { "name": "notes",            "type": "string",  "required": false, "description": "備注",                               "example": "含 Candy Bar + 甜點桌" }
+      ]
+    },
+
+    "MENU_ITEMS": {
+      "description": "菜單明細表。MENU_MASTER 與 ITEM_MASTER 的多對多關聯表。",
+      "primary_key": "id",
+      "foreign_keys": [
+        "menu_id → MENU_MASTER.menu_id",
+        "item_id → ITEM_MASTER.item_id"
+      ],
+      "columns": [
+        { "name": "id",             "type": "integer", "required": true,  "description": "自動流水號",                    "example": 1 },
+        { "name": "menu_id",        "type": "string",  "required": true,  "description": "對應菜單",                      "example": "MENU-WED-001" },
+        { "name": "item_id",        "type": "string",  "required": true,  "description": "對應品項",                      "example": "DES-MAC-001" },
+        { "name": "qty_per_pax",    "type": "number",  "required": true,  "description": "每人份數量（如 1.5 個/人）",    "example": 2 },
+        { "name": "display_order",  "type": "integer", "required": true,  "description": "在菜單中的顯示順序",            "example": 3 },
+        { "name": "is_optional",    "type": "boolean", "required": true,  "description": "是否為加購選配（非必含項目）",  "example": false },
+        { "name": "notes",          "type": "string",  "required": false, "description": "此項目在此菜單中的備注",        "example": "可替換口味" }
+      ]
+    }
+
+  },
+
+  "table_relationships": {
+    "diagram": [
+      "ITEM_MASTER ←── PRICE_MASTER   (1:N, 一個品項多筆價格)",
+      "ITEM_MASTER ←── ASSET_MASTER   (1:N, 一個品項多張圖)",
+      "ITEM_MASTER ←── CONTENT_MASTER (1:1 or null, 品項可有對應頁面)",
+      "MENU_MASTER ──→ MENU_ITEMS ←── ITEM_MASTER  (N:M, 多對多透過 MENU_ITEMS)"
+    ]
+  },
+
+  "excluded_by_design": [
+    "Orders / OrderLines（訂單表）— 未來 ERP 擴充時加入",
+    "Customer Master（客戶主檔）— 未來擴充",
+    "AI 自動報價邏輯 — 業務決策，不納入資料層"
+  ]
+}
