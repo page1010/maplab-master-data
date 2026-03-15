@@ -141,3 +141,27 @@ Checkpoint [YYYY-MM-DD HH:MM] — vX.X
 **Created**: 2026-03-04
 **Updated**: 2026-03-11 09:00
 **Author**: MAPLAB x Claude x GPT x Copilot
+
+
+## 📋 Changelog
+
+### v0.8 — 2026-03-15 08:25 | R1完成：11月剩餘5張訂單掃描 + 品項歸檔
+
+**角色**: Claude A1（主執行）  
+**本次主線**: 品項歸檔任務 R1 — 11月剩餘5張訂單掃描
+
+**已完成**:
+- 讀取 GitHub README 取得技能與作業準則
+- 讀取 Notion Dashboard 確認現況（v0.7++ 狀態：Items 223筆，row 223）
+- 掃描 2025年11月剩餘5張訂單：11/15 1000/25人、11/16 1000/20人、11/23 800/16人、11/9 700/15人、11/10 700/25人
+- Items sheet 新增 22 筆品項（APP086-094, MAIN013, DST111-118, BEV026-029）
+- DST110（row 233）補完所有欄位
+- 修正多處資料錯誤（category offset、unit tripled、batch_size doubled、extra row）
+- 修正 B228（MAIN010 category 被覆蓋）
+- Items 總計：255 - 1（標題行）= **254 筆有效品項**
+
+**Checkpoint 2026-03-15 08:25 — v0.8**
+完成: R1 11月剩餘5張訂單，22筆新品項（APP086-094, MAIN013, DST111-118, BEV026-029），Items共254筆
+待執行: R2 — 10月訂單（10/16科林研發, 10/31 candy, 10/3開幕等~10張）
+接手線索: Items sheet 從 row 256 繼續，APP095+, DST119+, BEV030+, MAIN014+
+已知問題: E column (default_cost) 新增行皆已確認為0
